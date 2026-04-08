@@ -1,57 +1,71 @@
 import { useState, useEffect } from "react";
 
 function Calendar() {
-  const days = Array.from({ length: 31 }, (_, i) => i + 1);
 
+  const [currentDate, setCurrentDate] = useState(new Date());
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
   const [note, setNote] = useState("");
   const [savedNotes, setSavedNotes] = useState({});
 
-  // Load notes from localStorage
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const monthName = currentDate.toLocaleString("default", {
+    month: "long",
+  });
+
+  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+
   useEffect(() => {
-    const stored = JSON.parse(localStorage.getItem("calendarNotes")) || {};
-    setSavedNotes(stored);
+    const stored = localStorage.getItem("calendarNotes");
+    if (stored) {
+      setSavedNotes(JSON.parse(stored));
+    }
   }, []);
 
-  // When range changes, load note automatically
-  useEffect(() => {
-    if (startDate && endDate) {
-      const key = `${startDate}-${endDate}`;
-      setNote(savedNotes[key] || "");
-    }
-  }, [startDate, endDate, savedNotes]);
+  const handleDateClick = (day) => {
 
-  const handleClick = (day) => {
-    if (!startDate) {
+    if (!startDate || (startDate && endDate)) {
       setStartDate(day);
       setEndDate(null);
-    } else if (!endDate && day > startDate) {
-      setEndDate(day);
     } else {
-      setStartDate(day);
-      setEndDate(null);
+      if (day < startDate) {
+        setStartDate(day);
+        setEndDate(null);
+      } else {
+        setEndDate(day);
+      }
     }
   };
 
-  const getBackground = (day) => {
-    if (day === startDate || day === endDate) return "#4CAF50";
-    if (startDate && endDate && day > startDate && day < endDate)
-      return "#A5D6A7";
-    return "transparent";
+  const isSelected = (day) => {
+
+    if (startDate && endDate) {
+      return day >= startDate && day <= endDate;
+    }
+
+    if (startDate === day) {
+      return true;
+    }
+
+    return false;
   };
 
   const saveNote = () => {
+
     if (!startDate || !endDate) {
-      alert("Please select a date range first.");
+      alert("Please select a date range first");
       return;
     }
 
-    const key = `${startDate}-${endDate}`;
+    const key = `${year}-${month}-${startDate}-${endDate}`;
 
     const updated = {
       ...savedNotes,
-      [key]: note
+      [key]: note,
     };
 
     setSavedNotes(updated);
@@ -62,8 +76,9 @@ function Calendar() {
   };
 
   return (
+
     <div style={{ maxWidth: "800px", margin: "auto", textAlign: "center" }}>
-      
+
       <img
         src="https://images.unsplash.com/photo-1500530855697-b586d89ba3ee"
         style={{
@@ -74,9 +89,36 @@ function Calendar() {
         }}
       />
 
-      <h2>September 2026</h2>
+      {/* Month Navigation */}
 
-      {/* Calendar */}
+      <div style={{
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        gap: "20px",
+        marginTop: "20px"
+      }}>
+
+        <button
+          onClick={() => setCurrentDate(new Date(year, month - 1))}
+          style={{ padding: "8px 15px" }}
+        >
+          Prev
+        </button>
+
+        <h2>{monthName} {year}</h2>
+
+        <button
+          onClick={() => setCurrentDate(new Date(year, month + 1))}
+          style={{ padding: "8px 15px" }}
+        >
+          Next
+        </button>
+
+      </div>
+
+      {/* Calendar Grid */}
+
       <div
         style={{
           display: "grid",
@@ -85,31 +127,42 @@ function Calendar() {
           padding: "20px"
         }}
       >
+
         {days.map((day) => (
-          <div
+
+          <button
             key={day}
-            onClick={() => handleClick(day)}
+            onClick={() => handleDateClick(day)}
             style={{
-              border: "1px solid #ccc",
               padding: "15px",
-              borderRadius: "8px",
-              cursor: "pointer",
-              background: getBackground(day),
-              fontWeight: "bold"
+              borderRadius: "10px",
+              border: "1px solid #ccc",
+              background: isSelected(day) ? "#4CAF50" : "#111",
+              color: "white",
+              cursor: "pointer"
             }}
           >
+
             {day}
-          </div>
+
+          </button>
+
         ))}
+
       </div>
 
-      {startDate && (
+      {/* Selected Range */}
+
+      {startDate && endDate && (
+
         <p>
-          Selected Range: <b>{startDate}{endDate ? ` - ${endDate}` : ""}</b>
+          Selected Range: {startDate} - {endDate}
         </p>
+
       )}
 
       {/* Notes Section */}
+
       <h3>Notes</h3>
 
       <textarea
@@ -117,10 +170,10 @@ function Calendar() {
         onChange={(e) => setNote(e.target.value)}
         placeholder="Write notes for selected range..."
         style={{
-          width: "400px",
+          width: "100%",
           height: "100px",
-          padding: "10px",
-          borderRadius: "6px"
+          borderRadius: "10px",
+          padding: "10px"
         }}
       />
 
@@ -130,41 +183,14 @@ function Calendar() {
         onClick={saveNote}
         style={{
           marginTop: "10px",
-          padding: "10px 20px",
-          borderRadius: "6px",
-          border: "none",
-          background: "#4CAF50",
-          color: "white",
-          cursor: "pointer"
+          padding: "10px 20px"
         }}
       >
         Save Note
       </button>
 
-      {/* Display Saved Notes */}
-      <div style={{ marginTop: "30px" }}>
-        <h3>Saved Notes</h3>
-
-        {Object.keys(savedNotes).length === 0 && <p>No notes yet.</p>}
-
-        {Object.entries(savedNotes).map(([range, text]) => (
-          <div
-            key={range}
-            style={{
-              border: "1px solid #ddd",
-              padding: "10px",
-              margin: "10px auto",
-              width: "300px",
-              borderRadius: "6px"
-            }}
-          >
-            <b>{range}</b>
-            <p>{text}</p>
-          </div>
-        ))}
-      </div>
-
     </div>
+
   );
 }
 
